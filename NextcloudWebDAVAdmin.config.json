@@ -1,0 +1,10 @@
+{
+  "language": "uk",
+  "host": "docs.lan",
+  "userId": "user1",
+  "drive": "N:",
+  "davPath": "/remote.php/dav/files/user1",
+  "certPath": "",
+  "authForwardServer": "https://docs.lan",
+  "persistent": true
+}
