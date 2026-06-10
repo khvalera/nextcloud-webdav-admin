@@ -1,21 +1,117 @@
 # Nextcloud WebDAV Admin
 
-**Version:** 0.1.1
+**Nextcloud WebDAV Admin** — portable Windows GUI-утиліта для підключення Nextcloud WebDAV як мережевого диска Windows.
 
-Portable Windows GUI utility for mounting Nextcloud WebDAV as a Windows drive.
+Версія: **0.1.1**
 
-## Changes in 0.1.1
+![Nextcloud WebDAV Admin](images/appearance.png)
 
-- Settings are now stored in the current Windows user profile:
-  `%APPDATA%\NextcloudWebDAVAdmin\NextcloudWebDAVAdmin.config.json`
-- Config lookup order:
-  1. user profile config;
-  2. config next to the program as fallback/template;
-  3. built-in defaults.
-- All config saves go to the user profile.
-- Manual WebDAV mount logic is unchanged from 0.1.0.
+## Можливості
 
-## Note
+- підключення Nextcloud WebDAV як диск Windows;
+- відключення підключеного диска;
+- перегляд активних мережевих підключень;
+- відкриття підключеного диска у Провіднику Windows;
+- перевірка HTTPS;
+- перевірка HTTPS без перевірки відкликання сертифіката;
+- перевірка WebDAV;
+- встановлення локального / самописного CA-сертифіката;
+- запуск системного налаштування Windows WebClient/WebDAV;
+- portable-режим без інсталятора;
+- український та англійський інтерфейс.
 
-The config next to the program remains only as a fallback/default template.
-The Nextcloud App Password is not stored in `config.json`.
+## Важливо
+
+Програма використовує Windows API `WNetAddConnection2` для підключення WebDAV-диска.
+
+Пароль застосунку Nextcloud **не зберігається** у конфігураційному файлі.
+
+## Конфігурація
+
+Починаючи з версії **0.1.1**, налаштування зберігаються у профілі поточного користувача Windows:
+
+```text
+%APPDATA%\NextcloudWebDAVAdmin\NextcloudWebDAVAdmin.config.json
+```
+
+Порядок пошуку конфігурації:
+
+1. конфіг у папці користувача;
+2. конфіг поруч із програмою як fallback/шаблон;
+3. стандартні значення.
+
+Файл конфігурації поруч із програмою залишається як шаблон для першого запуску.
+
+## Приклад конфігурації
+
+```json
+{
+  "language": "uk",
+  "host": "docs.lan",
+  "userId": "user1",
+  "drive": "N:",
+  "davPath": "/remote.php/dav/files/user1",
+  "certPath": "",
+  "authForwardServer": "https://docs.lan",
+  "persistent": true
+}
+```
+
+## Використання
+
+1. Розпакуй архів у постійну папку.
+2. Запусти `Create-DesktopShortcut.vbs`, щоб створити ярлик.
+3. Відкрий **Nextcloud WebDAV Admin**.
+4. Вкажи сервер, користувача, літеру диска та WebDAV-шлях.
+5. Введи **App Password** Nextcloud.
+6. Натисни **Mount drive / Підключити диск**.
+
+## Сертифікат
+
+Для локального або самописного CA-сертифіката:
+
+1. обери файл сертифіката `.cer`, `.crt` або `.pem`;
+2. натисни **Install certificate / Встановити сертифікат**;
+3. підтвердь запуск від адміністратора.
+
+Використовується команда:
+
+```cmd
+certutil -addstore -f Root "certificate_file"
+```
+
+## HTTPS і CRYPT_E_NO_REVOCATION_CHECK
+
+У локальних мережах із власним CA Windows може показувати помилку:
+
+```text
+CRYPT_E_NO_REVOCATION_CHECK
+```
+
+Для перевірки такого підключення в програмі є окрема кнопка:
+
+```text
+Check without revocation / Перевірка без відкликання
+```
+
+Також можна вимкнути перевірку відкликання сертифіката сервера у Windows:
+
+```text
+Internet Options -> Advanced -> Security
+```
+
+## Зміни у 0.1.1
+
+- налаштування перенесено у папку користувача Windows;
+- додано fallback-конфіг поруч із програмою;
+- усі подальші збереження конфігу виконуються у `%APPDATA%`;
+- механізм ручного монтування з 0.1.0 не змінювався.
+
+## Обмеження
+
+Після перезавантаження Windows WebDAV-диск може не відновитися автоматично штатним механізмом Windows.  
+У версії 0.1.1 основний акцент — стабільне ручне підключення диска.
+
+## License
+
+MIT
