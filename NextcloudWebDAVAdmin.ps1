@@ -1,9 +1,10 @@
 ﻿# Nextcloud WebDAV Admin Portable
-# Version: 0.1.1
+# Version: 0.1.2
 # Config file: NextcloudWebDAVAdmin.config.json in the same directory.
 
 param(
-    [switch]$AdminSetupOnly
+    [switch]$AdminSetupOnly,
+    [switch]$AutoMount
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -106,7 +107,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $ConfigFileName = "NextcloudWebDAVAdmin.config.json"
 
-# 0.1.1:
+# 0.1.2:
 # User config has priority and is always used for saving.
 # Portable config near the program is only a fallback/default template.
 $UserConfigDir = Join-Path $env:APPDATA "NextcloudWebDAVAdmin"
@@ -114,6 +115,13 @@ $UserConfigPath = Join-Path $UserConfigDir $ConfigFileName
 $PortableConfigPath = Join-Path $ScriptDir $ConfigFileName
 
 $ConfigPath = $UserConfigPath
+
+$PasswordFile = Join-Path $UserConfigDir "nextcloud-webdav-app-password.dpapi"
+$AutoMountScriptPath = Join-Path $UserConfigDir "NextcloudWebDAVAdmin.ps1"
+$StartupDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
+$StartupVbsPath = Join-Path $StartupDir "Nextcloud-WebDAV-N.vbs"
+$LogFilePath = Join-Path $UserConfigDir "NextcloudWebDAVAdmin.log"
+
 
 $DefaultConfig = [ordered]@{
     language = "uk"
@@ -123,12 +131,12 @@ $DefaultConfig = [ordered]@{
     davPath = "/remote.php/dav/files/user1"
     certPath = ""
     authForwardServer = "https://docs.lan"
-    persistent = $true
+    persistent = $false
 }
 
 $Text = @{
     uk = @{
-        Title = "Nextcloud WebDAV Admin 0.1.1"
+        Title = "Nextcloud WebDAV Admin 0.1.2"
         ModeAdmin = "Режим адміністратора: доступні системні налаштування. Для монтування диска краще запускати як звичайний користувач."
         ModeUser = "Режим користувача: можна монтувати диск. Системні налаштування потребують прав адміністратора."
         Language = "Мова"
@@ -137,7 +145,7 @@ $Text = @{
         Drive = "Літера диска"
         DavPath = "Шлях"
         Password = "Пароль застосунку"
-        PasswordNote = "Пароль не зберігається в конфігурації"
+        PasswordNote = "Пароль не в конфігу; для автозапуску натисни Зберегти пароль"
         Certificate = "Сертифікат"
         BrowseCert = "Огляд..."
         InstallCert = "Встановити сертифікат"
@@ -155,11 +163,18 @@ $Text = @{
         OpenPc = "Відкрити комп’ютер"
         SaveConfig = "Зберегти конфіг"
         ReloadConfig = "Перечитати конфіг"
+        SavePassword = "Зберегти пароль"
+        InstallAutoStart = "Автопідключення"
+        RemoveAutoStart = "Прибрати автозапуск"
         Ready = "Готово."
         Hint = "Спочатку один раз натисни 'Системні налаштування', потім підключай диск як звичайний користувач."
         ConfigSaved = "Конфіг збережено."
         ConfigLoaded = "Конфіг перечитано."
         NeedPassword = "Введи App Password від Nextcloud."
+        PasswordSaved = "App Password збережено через DPAPI."
+        PasswordMissingForAuto = "Для автопідключення спочатку збережи App Password."
+        AutoStartInstalled = "Тихий автозапуск встановлено."
+        AutoStartRemoved = "Автозапуск видалено."
         PasswordHidden = "Пароль у журнал не виводиться."
         MountOk = "Диск підключено!"
         MountFail = "Не вдалося підключити диск. Дивись журнал."
@@ -167,14 +182,14 @@ $Text = @{
         AdminStarted = "Запуск системного налаштування з правами адміністратора..."
         AdminDone = "Системне налаштування виконано. Якщо потрібно — перезавантаж Windows."
         AdminNeed = "Потрібні права адміністратора."
-        RevokeHint = "Якщо HTTPS дає CRYPT_E_NO_REVOCATION_CHECK: Параметри Інтернету -> Додатково -> Безпека -> вимкнути перевірку відкликання сертифіката сервера."
+        RevokeHint = "0.1.2: монтування через WScript.Network persistent=false. Тихий запуск: Start-NextcloudWebDAVAdmin.vbs або ярлик. Якщо сервер дає 429 — скинь Nextcloud brute-force для IP клієнта."
         HttpsOk = "HTTPS Ok"
         NoRevokeOk = "HTTPS без відкликання Ok"
         WebDavOk = "WebDav Ok"
         HttpsRevokeProblem = 'HTTPS перевірка впала через CRYPT_E_NO_REVOCATION_CHECK. Для локального сертифіката це очікувано, якщо Windows не може перевірити відкликання. Використай кнопку "Перевірка без відкликання".'
     }
     en = @{
-        Title = "Nextcloud WebDAV Admin 0.1.1"
+        Title = "Nextcloud WebDAV Admin 0.1.2"
         ModeAdmin = "Administrator mode: system setup is available. For drive mapping, normal user mode is usually better."
         ModeUser = "User mode: drive mapping is available. System setup requires administrator rights."
         Language = "Language"
@@ -183,7 +198,7 @@ $Text = @{
         Drive = "Drive letter"
         DavPath = "Path"
         Password = "App Password"
-        PasswordNote = "Password is not saved to config"
+        PasswordNote = "Password is not in config; use Save password for autostart"
         Certificate = "Certificate"
         BrowseCert = "Browse..."
         InstallCert = "Install certificate"
@@ -201,11 +216,18 @@ $Text = @{
         OpenPc = "Open computer"
         SaveConfig = "Save config"
         ReloadConfig = "Reload config"
+        SavePassword = "Save password"
+        InstallAutoStart = "Install autostart"
+        RemoveAutoStart = "Remove autostart"
         Ready = "Ready."
         Hint = "Run system setup once first, then map the drive as a normal user."
         ConfigSaved = "Config saved."
         ConfigLoaded = "Config reloaded."
         NeedPassword = "Enter Nextcloud App Password."
+        PasswordSaved = "App Password saved with DPAPI."
+        PasswordMissingForAuto = "Save the App Password first for autostart."
+        AutoStartInstalled = "Silent autostart installed."
+        AutoStartRemoved = "Autostart removed."
         PasswordHidden = "Password is not printed to log."
         MountOk = "Drive mounted!"
         MountFail = "Drive mount failed. See log."
@@ -213,7 +235,7 @@ $Text = @{
         AdminStarted = "Starting system setup with administrator rights..."
         AdminDone = "System setup completed. Reboot Windows if needed."
         AdminNeed = "Administrator rights are required."
-        RevokeHint = "If HTTPS returns CRYPT_E_NO_REVOCATION_CHECK: Internet Options -> Advanced -> Security -> disable Check for server certificate revocation."
+        RevokeHint = "0.1.2: maps via WScript.Network persistent=false. If server returns 429, reset Nextcloud brute-force for the client IP."
         HttpsOk = "HTTPS Ok"
         NoRevokeOk = "HTTPS no-revoke Ok"
         WebDavOk = "WebDav Ok"
@@ -313,6 +335,16 @@ function Is-Admin {
 
 function Log {
     param([string]$Message)
+
+    try {
+        Ensure-UserConfigDir
+        $tsFull = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        Add-Content -Path $LogFilePath -Value ("[$tsFull] $Message") -Encoding UTF8
+    }
+    catch {
+        # Ignore file log errors.
+    }
+
     if ($null -eq $script:LogBox) { return }
     $ts = Get-Date -Format "HH:mm:ss"
     $script:LogBox.AppendText("[$ts] $Message`r`n")
@@ -474,6 +506,200 @@ if ($AdminSetupOnly) {
     exit (Do-AdminSetup)
 }
 
+function Convert-SecureStringToPlainText {
+    param([System.Security.SecureString]$SecureString)
+
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureString)
+    try {
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
+
+function Save-AppPasswordPlainText {
+    param([string]$Password)
+
+    if ([string]::IsNullOrWhiteSpace($Password)) {
+        throw (T "NeedPassword")
+    }
+
+    Ensure-UserConfigDir
+    $secure = ConvertTo-SecureString -String $Password -AsPlainText -Force
+    $secure | ConvertFrom-SecureString | Set-Content -Path $PasswordFile -Encoding ASCII
+    Log (T "PasswordSaved")
+}
+
+function Read-SavedAppPasswordPlainText {
+    if (-not (Test-Path $PasswordFile)) {
+        throw (T "PasswordMissingForAuto")
+    }
+
+    $secure = Get-Content -Path $PasswordFile -ErrorAction Stop | ConvertTo-SecureString
+    return Convert-SecureStringToPlainText $secure
+}
+
+function Get-NormalizedDrive {
+    param([string]$Drive)
+    $d = [string]$Drive.Trim()
+    if (-not $d.EndsWith(":")) { $d = "$d`:" }
+    return $d
+}
+
+function Get-WebDavUnc {
+    param(
+        [string]$HostName,
+        [string]$DavPath
+    )
+
+    $pathWin = ([string]$DavPath -replace '/', '\').TrimStart('\')
+    return "\\$HostName@SSL\DavWWWRoot\$pathWin"
+}
+
+function Clear-DriveMappingInternal {
+    param([string]$Drive)
+
+    $d = Get-NormalizedDrive $Drive
+    $letter = $d.TrimEnd(":")
+
+    Log ("Disable net use persistent default")
+    Run-Capture "$env:SystemRoot\System32\net.exe" "use /persistent:no" "net use /persistent:no" 20 | Out-Null
+
+    Log ("Remove current/remembered mapping: " + $d)
+    try { [void][WNetHelper]::WNetCancelConnection2($d, 1, $true) } catch {}
+    Run-Capture "$env:SystemRoot\System32\net.exe" ("use " + $d + " /delete /y") ("net use " + $d + " /delete /y") 20 | Out-Null
+    Run-Capture "$env:SystemRoot\System32\reg.exe" ('delete "HKCU\Network\' + $letter + '" /f') ('reg delete "HKCU\Network\' + $letter + '" /f') 20 | Out-Null
+}
+
+function Mount-WebDavInternal {
+    param(
+        [string]$Drive,
+        [string]$HostName,
+        [string]$DavPath,
+        [string]$UserName,
+        [string]$Password
+    )
+
+    $d = Get-NormalizedDrive $Drive
+    $unc = Get-WebDavUnc $HostName $DavPath
+
+    Log ("UNC: " + $unc)
+    Log (T "PasswordHidden")
+
+    Clear-DriveMappingInternal $d
+
+    try {
+        Log "Mapping via WScript.Network.MapNetworkDrive, persistent=false"
+        $network = New-Object -ComObject WScript.Network
+        $network.MapNetworkDrive($d, $unc, $false, $UserName, $Password)
+
+        Start-Sleep -Seconds 1
+
+        if (Test-Path ($d + "\")) {
+            Log (T "MountOk")
+            return 0
+        }
+
+        Log ("MapNetworkDrive returned without exception, but drive is not accessible: " + $d)
+        return 3
+    }
+    catch {
+        Log ("MapNetworkDrive failed: " + $_.Exception.Message)
+        Log "Hint: if Apache/Nextcloud log shows HTTP 429 for Microsoft-WebDAV-MiniRedir, reset Nextcloud brute-force for the client IP."
+        return 1
+    }
+}
+
+function Do-AutoMount {
+    $cfg = Load-Config
+    $script:Config = $cfg
+
+    Log "============================================================"
+    Log "AutoMount started"
+    Log ("Config: " + $ConfigPath)
+
+    $url = "https://" + [string]$cfg.host + "/status.php"
+    for ($i = 1; $i -le 12; $i++) {
+        Log ("Check HTTPS " + $i + "/12: " + $url)
+        & curl.exe -sS -I --connect-timeout 5 $url *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Log "HTTPS Nextcloud доступний."
+            break
+        }
+        Start-Sleep -Seconds 10
+    }
+
+    try {
+        $pass = Read-SavedAppPasswordPlainText
+    }
+    catch {
+        Log ("AutoMount stopped: " + $_.Exception.Message)
+        return 2
+    }
+
+    return (Mount-WebDavInternal ([string]$cfg.drive) ([string]$cfg.host) ([string]$cfg.davPath) ([string]$cfg.userId) $pass)
+}
+
+function Save-AppPasswordFromGui {
+    $pass = [string]$PasswordBox.Text
+    if ([string]::IsNullOrWhiteSpace($pass)) {
+        [System.Windows.Forms.MessageBox]::Show((T "NeedPassword"), (T "Title"), "OK", "Warning") | Out-Null
+        return
+    }
+
+    Save-GuiConfig
+    Save-AppPasswordPlainText $pass
+    [System.Windows.Forms.MessageBox]::Show((T "PasswordSaved"), (T "Title"), "OK", "Information") | Out-Null
+}
+
+function Install-AutoStart {
+    Save-GuiConfig
+
+    if (-not (Test-Path $PasswordFile)) {
+        if (-not [string]::IsNullOrWhiteSpace($PasswordBox.Text)) {
+            Save-AppPasswordPlainText ([string]$PasswordBox.Text)
+        }
+        else {
+            [System.Windows.Forms.MessageBox]::Show((T "PasswordMissingForAuto"), (T "Title"), "OK", "Warning") | Out-Null
+            return
+        }
+    }
+
+    Ensure-UserConfigDir
+    if (-not (Test-Path $StartupDir)) { New-Item -ItemType Directory -Path $StartupDir -Force | Out-Null }
+
+    Copy-Item -Path $MyInvocation.MyCommand.Path -Destination $AutoMountScriptPath -Force
+
+    $vbs = @'
+Option Explicit
+Dim sh, appdata, ps1, cmd
+Set sh = CreateObject("WScript.Shell")
+appdata = sh.ExpandEnvironmentStrings("%APPDATA%")
+ps1 = appdata & "\NextcloudWebDAVAdmin\NextcloudWebDAVAdmin.ps1"
+cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Chr(34) & ps1 & Chr(34) & " -AutoMount"
+sh.Run cmd, 0, False
+'@
+
+    [System.IO.File]::WriteAllText($StartupVbsPath, $vbs, [System.Text.Encoding]::ASCII)
+    Log (T "AutoStartInstalled")
+    [System.Windows.Forms.MessageBox]::Show((T "AutoStartInstalled"), (T "Title"), "OK", "Information") | Out-Null
+}
+
+function Remove-AutoStart {
+    if (Test-Path $StartupVbsPath) {
+        Remove-Item $StartupVbsPath -Force
+    }
+
+    Log (T "AutoStartRemoved")
+    [System.Windows.Forms.MessageBox]::Show((T "AutoStartRemoved"), (T "Title"), "OK", "Information") | Out-Null
+}
+
+if ($AutoMount) {
+    exit (Do-AutoMount)
+}
+
+
 function Gui-ToConfig {
     return [ordered]@{
         language = [string]$LangBox.SelectedItem
@@ -483,7 +709,7 @@ function Gui-ToConfig {
         davPath = $PathBox.Text.Trim()
         certPath = $CertPathBox.Text.Trim()
         authForwardServer = "https://" + $HostBox.Text.Trim()
-        persistent = $true
+        persistent = $false
     }
 }
 
@@ -684,87 +910,50 @@ function Run-HiddenNoRedirect {
 function Mount-Drive {
     Save-GuiConfig
 
-    $pass = $PasswordBox.Text
+    $pass = [string]$PasswordBox.Text
     if ([string]::IsNullOrWhiteSpace($pass)) {
-        [System.Windows.Forms.MessageBox]::Show((T "NeedPassword"), (T "Title"), "OK", "Warning") | Out-Null
-        return
+        try {
+            $pass = Read-SavedAppPasswordPlainText
+            Log "Using saved DPAPI App Password."
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show((T "NeedPassword"), (T "Title"), "OK", "Warning") | Out-Null
+            return
+        }
     }
 
-    $drive = $DriveBox.Text.Trim()
-    if (-not $drive.EndsWith(":")) { $drive = "$drive`:" }
-
+    $drive = Get-NormalizedDrive $DriveBox.Text
     $hostName = $HostBox.Text.Trim()
     $path = $PathBox.Text.Trim()
-    $pathWin = ($path -replace '/', '\').TrimStart('\')
-
-    $unc1 = "\\$hostName@SSL\DavWWWRoot\$pathWin"
-    $unc2 = "\\$hostName@SSL\$pathWin"
     $user = $UserBox.Text.Trim()
 
-    Log ("UNC primary: " + $unc1)
-    Log ("UNC fallback: " + $unc2)
-
-    # Disconnect old mapping. Error is not fatal.
-    try {
-        [void][WNetHelper]::WNetCancelConnection2($drive, 0, $true)
-        Log ("Old mapping removed: " + $drive)
-    }
-    catch {
-        Log ("Old mapping remove ignored: " + $_.Exception.Message)
-    }
-
-    Log (T "PasswordHidden")
-    Log "Mapping via Windows API WNetAddConnection2, not net.exe."
-
-    $nr = New-Object WNetHelper+NETRESOURCE
-    $nr.dwType = 1 # RESOURCETYPE_DISK
-    $nr.lpLocalName = $drive
-    $nr.lpRemoteName = $unc1
-    $nr.lpProvider = $null
-
-    $CONNECT_UPDATE_PROFILE = 0x00000001
-
-    $code = [WNetHelper]::WNetAddConnection2([ref]$nr, $pass, $user, $CONNECT_UPDATE_PROFILE)
-
-    if ($code -ne 0) {
-        Log ("WNetAddConnection2 primary failed. Win32 code: " + $code + " - " + (New-Object ComponentModel.Win32Exception($code)).Message)
-        Log "Trying fallback UNC..."
-
-        try { [void][WNetHelper]::WNetCancelConnection2($drive, 0, $true) } catch {}
-
-        $nr2 = New-Object WNetHelper+NETRESOURCE
-        $nr2.dwType = 1
-        $nr2.lpLocalName = $drive
-        $nr2.lpRemoteName = $unc2
-        $nr2.lpProvider = $null
-
-        $code = [WNetHelper]::WNetAddConnection2([ref]$nr2, $pass, $user, $CONNECT_UPDATE_PROFILE)
-    }
+    $code = Mount-WebDavInternal $drive $hostName $path $user $pass
 
     if ($code -eq 0) {
-        Log (T "MountOk")
         [System.Windows.Forms.MessageBox]::Show((T "MountOk"), (T "Title"), "OK", "Information") | Out-Null
-    } else {
-        $msg = (New-Object ComponentModel.Win32Exception($code)).Message
-        Log ("WNetAddConnection2 failed. Win32 code: " + $code + " - " + $msg)
-        [System.Windows.Forms.MessageBox]::Show(((T "MountFail") + "`r`nWin32 code: " + $code + "`r`n" + $msg), (T "Title"), "OK", "Error") | Out-Null
+    }
+    else {
+        [System.Windows.Forms.MessageBox]::Show(((T "MountFail") + "`r`nCode: " + $code + "`r`nЯкщо в Apache log є HTTP 429 — скинь Nextcloud brute-force для IP клієнта."), (T "Title"), "OK", "Error") | Out-Null
     }
 }
 
 function Unmount-Drive {
-    $drive = $DriveBox.Text.Trim()
-    if (-not $drive.EndsWith(":")) { $drive = "$drive`:" }
+    $drive = Get-NormalizedDrive $DriveBox.Text
 
-    Log ("Disconnect via WNetCancelConnection2: " + $drive)
-    $code = [WNetHelper]::WNetCancelConnection2($drive, 1, $true)
+    Log ("Disconnect via WScript.Network and cleanup: " + $drive)
 
-    if ($code -eq 0) {
-        Log (T "UnmountOk")
-        [System.Windows.Forms.MessageBox]::Show((T "UnmountOk"), (T "Title"), "OK", "Information") | Out-Null
-    } else {
-        $msg = (New-Object ComponentModel.Win32Exception($code)).Message
-        Log ("Disconnect failed. Win32 code: " + $code + " - " + $msg)
+    try {
+        $network = New-Object -ComObject WScript.Network
+        $network.RemoveNetworkDrive($drive, $true, $false)
     }
+    catch {
+        Log ("RemoveNetworkDrive ignored/error: " + $_.Exception.Message)
+    }
+
+    Clear-DriveMappingInternal $drive
+
+    Log (T "UnmountOk")
+    [System.Windows.Forms.MessageBox]::Show((T "UnmountOk"), (T "Title"), "OK", "Information") | Out-Null
 }
 
 function Show-NetUse {
@@ -781,12 +970,12 @@ function Open-ThisPc {
 
 # GUI
 $Form = New-Object System.Windows.Forms.Form
-$Form.Size = New-Object System.Drawing.Size(900, 720)
+$Form.Size = New-Object System.Drawing.Size(900, 790)
 $Form.StartPosition = "CenterScreen"
 $Form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $Form.MaximizeBox = $false
-$Form.MinimumSize = New-Object System.Drawing.Size(900, 720)
-$Form.MaximumSize = New-Object System.Drawing.Size(900, 720)
+$Form.MinimumSize = New-Object System.Drawing.Size(900, 790)
+$Form.MaximumSize = New-Object System.Drawing.Size(900, 790)
 $Form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 
 $TitleLabel = New-Object System.Windows.Forms.Label
@@ -1023,6 +1212,17 @@ function Get-ButtonIcon {
             if ($null -ne $bmp) { return $bmp }
             return [System.Drawing.SystemIcons]::Asterisk.ToBitmap()
         }
+        "SavePassword"    { return [System.Drawing.SystemIcons]::Shield.ToBitmap() }
+        "InstallAutoStart" {
+            $bmp = Get-DllIconBitmap "%SystemRoot%\System32\imageres.dll" 232
+            if ($null -ne $bmp) { return $bmp }
+            return [System.Drawing.SystemIcons]::Application.ToBitmap()
+        }
+        "RemoveAutoStart" {
+            $bmp = Get-DllIconBitmap "%SystemRoot%\System32\imageres.dll" 229
+            if ($null -ne $bmp) { return $bmp }
+            return [System.Drawing.SystemIcons]::Warning.ToBitmap()
+        }
         "ReloadConfig" {
             $bmp = Get-DllIconBitmap "%SystemRoot%\System32\shell32.dll" 238
             if ($null -ne $bmp) { return $bmp }
@@ -1058,21 +1258,26 @@ Add-Button "Unmount" 240 365 210 42 { Unmount-Drive }
 Add-Button "OpenPc" 460 365 185 42 { Open-ThisPc }
 Add-Button "NetUse" 655 365 205 42 { Show-NetUse }
 
-Add-Button "SystemSetup" 20 420 230 38 { Start-AdminSetup }
-Add-Button "TestHttps" 260 420 170 38 { Test-Https }
-Add-Button "TestNoRevoke" 440 420 235 38 { Test-NoRevoke }
-Add-Button "TestWebDav" 685 420 175 38 { Test-WebDav }
+# 0.1.2: autostart controls are directly under the mount controls.
+Add-Button "InstallAutoStart" 20 420 410 38 { Install-AutoStart }
+Add-Button "RemoveAutoStart" 450 420 410 38 { Remove-AutoStart }
 
-Add-Button "InternetOptions" 20 470 230 38 { Open-InternetOptions }
-Add-Button "SaveConfig" 260 470 185 38 { Save-GuiConfig }
-Add-Button "ReloadConfig" 455 470 200 38 { Reload-GuiConfig }
+Add-Button "SystemSetup" 20 470 230 38 { Start-AdminSetup }
+Add-Button "TestHttps" 260 470 170 38 { Test-Https }
+Add-Button "TestNoRevoke" 440 470 235 38 { Test-NoRevoke }
+Add-Button "TestWebDav" 685 470 175 38 { Test-WebDav }
+
+Add-Button "InternetOptions" 20 520 230 38 { Open-InternetOptions }
+Add-Button "SaveConfig" 260 520 185 38 { Save-GuiConfig }
+Add-Button "ReloadConfig" 455 520 200 38 { Reload-GuiConfig }
+Add-Button "SavePassword" 665 520 195 38 { Save-AppPasswordFromGui }
 
 $script:LogBox = New-Object System.Windows.Forms.TextBox
 $script:LogBox.Multiline = $true
 $script:LogBox.ScrollBars = "Vertical"
 $script:LogBox.ReadOnly = $true
-$script:LogBox.Location = New-Object System.Drawing.Point(20, 525)
-$script:LogBox.Size = New-Object System.Drawing.Size(840, 120)
+$script:LogBox.Location = New-Object System.Drawing.Point(20, 575)
+$script:LogBox.Size = New-Object System.Drawing.Size(840, 165)
 $Form.Controls.Add($script:LogBox)
 
 function Apply-Language {
