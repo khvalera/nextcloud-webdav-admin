@@ -1,48 +1,48 @@
 # Nextcloud WebDAV Admin
 
-**Nextcloud WebDAV Admin** — portable Windows GUI-утиліта для підключення Nextcloud WebDAV як мережевого диска Windows.
+**Nextcloud WebDAV Admin** is a portable Windows GUI utility for mounting Nextcloud WebDAV as a Windows network drive.
 
-Версія: **0.1.1**
+Version: **0.1.1**
 
 ![Nextcloud WebDAV Admin](images/appearance.png)
 
-## Можливості
+## Features
 
-- підключення Nextcloud WebDAV як диск Windows;
-- відключення підключеного диска;
-- перегляд активних мережевих підключень;
-- відкриття підключеного диска у Провіднику Windows;
-- перевірка HTTPS;
-- перевірка HTTPS без перевірки відкликання сертифіката;
-- перевірка WebDAV;
-- встановлення локального / самописного CA-сертифіката;
-- запуск системного налаштування Windows WebClient/WebDAV;
-- portable-режим без інсталятора;
-- український та англійський інтерфейс.
+- mount Nextcloud WebDAV as a Windows drive;
+- unmount the connected drive;
+- show active network connections;
+- open the mounted drive in Windows Explorer;
+- check HTTPS;
+- check HTTPS without certificate revocation verification;
+- check WebDAV;
+- install a local / self-signed CA certificate;
+- run Windows WebClient/WebDAV system setup;
+- portable mode without installer;
+- Ukrainian and English UI.
 
-## Важливо
+## Important
 
-Програма використовує Windows API `WNetAddConnection2` для підключення WebDAV-диска.
+The application uses Windows API `WNetAddConnection2` for WebDAV drive mapping.
 
-Пароль застосунку Nextcloud **не зберігається** у конфігураційному файлі.
+The Nextcloud App Password is **not stored** in the configuration file.
 
-## Конфігурація
+## Configuration
 
-Починаючи з версії **0.1.1**, налаштування зберігаються у профілі поточного користувача Windows:
+Starting with version **0.1.1**, settings are stored in the current Windows user profile:
 
 ```text
 %APPDATA%\NextcloudWebDAVAdmin\NextcloudWebDAVAdmin.config.json
 ```
 
-Порядок пошуку конфігурації:
+Configuration lookup order:
 
-1. конфіг у папці користувача;
-2. конфіг поруч із програмою як fallback/шаблон;
-3. стандартні значення.
+1. user profile config;
+2. config next to the program as fallback/template;
+3. built-in defaults.
 
-Файл конфігурації поруч із програмою залишається як шаблон для першого запуску.
+The config file next to the program remains only as a fallback template for first launch.
 
-## Приклад конфігурації
+## Example config
 
 ```json
 {
@@ -57,60 +57,60 @@
 }
 ```
 
-## Використання
+## Usage
 
-1. Розпакуй архів у постійну папку.
-2. Запусти `Create-DesktopShortcut.vbs`, щоб створити ярлик.
-3. Відкрий **Nextcloud WebDAV Admin**.
-4. Вкажи сервер, користувача, літеру диска та WebDAV-шлях.
-5. Введи **App Password** Nextcloud.
-6. Натисни **Mount drive / Підключити диск**.
+1. Unzip the archive to a permanent folder.
+2. Run `Create-DesktopShortcut.vbs` to create a desktop shortcut.
+3. Start **Nextcloud WebDAV Admin**.
+4. Set host, user, drive letter, and WebDAV path.
+5. Enter the Nextcloud **App Password**.
+6. Click **Mount drive**.
 
-## Сертифікат
+## Certificate
 
-Для локального або самописного CA-сертифіката:
+For a local or self-signed CA certificate:
 
-1. обери файл сертифіката `.cer`, `.crt` або `.pem`;
-2. натисни **Install certificate / Встановити сертифікат**;
-3. підтвердь запуск від адміністратора.
+1. select a `.cer`, `.crt`, or `.pem` certificate file;
+2. click **Install certificate**;
+3. approve the administrator prompt.
 
-Використовується команда:
+The application runs:
 
 ```cmd
 certutil -addstore -f Root "certificate_file"
 ```
 
-## HTTPS і CRYPT_E_NO_REVOCATION_CHECK
+## HTTPS and CRYPT_E_NO_REVOCATION_CHECK
 
-У локальних мережах із власним CA Windows може показувати помилку:
+In local networks with a private CA, Windows may return:
 
 ```text
 CRYPT_E_NO_REVOCATION_CHECK
 ```
 
-Для перевірки такого підключення в програмі є окрема кнопка:
+For this case, the application has a separate button:
 
 ```text
-Check without revocation / Перевірка без відкликання
+Check without revocation
 ```
 
-Також можна вимкнути перевірку відкликання сертифіката сервера у Windows:
+You can also disable server certificate revocation checking in Windows:
 
 ```text
 Internet Options -> Advanced -> Security
 ```
 
-## Зміни у 0.1.1
+## Changes in 0.1.1
 
-- налаштування перенесено у папку користувача Windows;
-- додано fallback-конфіг поруч із програмою;
-- усі подальші збереження конфігу виконуються у `%APPDATA%`;
-- механізм ручного монтування з 0.1.0 не змінювався.
+- settings are now stored in the Windows user profile;
+- added fallback config next to the program;
+- all config saves now go to `%APPDATA%`;
+- manual mount logic from 0.1.0 was not changed.
 
-## Обмеження
+## Limitation
 
-Після перезавантаження Windows WebDAV-диск може не відновитися автоматично штатним механізмом Windows.  
-У версії 0.1.1 основний акцент — стабільне ручне підключення диска.
+After reboot, Windows may not automatically restore the WebDAV drive using its native persistent mapping mechanism.  
+Version 0.1.1 focuses on stable manual drive mounting.
 
 ## License
 
