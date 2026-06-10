@@ -1,5 +1,5 @@
 ﻿# Nextcloud WebDAV Admin Portable
-# Version: 0.1.0
+# Version: 0.1.1
 # Config file: NextcloudWebDAVAdmin.config.json in the same directory.
 
 param(
@@ -103,7 +103,17 @@ public static class ButtonIconTools
 
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ConfigPath = Join-Path $ScriptDir "NextcloudWebDAVAdmin.config.json"
+
+$ConfigFileName = "NextcloudWebDAVAdmin.config.json"
+
+# 0.1.1:
+# User config has priority and is always used for saving.
+# Portable config near the program is only a fallback/default template.
+$UserConfigDir = Join-Path $env:APPDATA "NextcloudWebDAVAdmin"
+$UserConfigPath = Join-Path $UserConfigDir $ConfigFileName
+$PortableConfigPath = Join-Path $ScriptDir $ConfigFileName
+
+$ConfigPath = $UserConfigPath
 
 $DefaultConfig = [ordered]@{
     language = "uk"
@@ -118,7 +128,7 @@ $DefaultConfig = [ordered]@{
 
 $Text = @{
     uk = @{
-        Title = "Nextcloud WebDAV Admin 0.1.0"
+        Title = "Nextcloud WebDAV Admin 0.1.1"
         ModeAdmin = "Режим адміністратора: доступні системні налаштування. Для монтування диска краще запускати як звичайний користувач."
         ModeUser = "Режим користувача: можна монтувати диск. Системні налаштування потребують прав адміністратора."
         Language = "Мова"
@@ -164,7 +174,7 @@ $Text = @{
         HttpsRevokeProblem = 'HTTPS перевірка впала через CRYPT_E_NO_REVOCATION_CHECK. Для локального сертифіката це очікувано, якщо Windows не може перевірити відкликання. Використай кнопку "Перевірка без відкликання".'
     }
     en = @{
-        Title = "Nextcloud WebDAV Admin 0.1.0"
+        Title = "Nextcloud WebDAV Admin 0.1.1"
         ModeAdmin = "Administrator mode: system setup is available. For drive mapping, normal user mode is usually better."
         ModeUser = "User mode: drive mapping is available. System setup requires administrator rights."
         Language = "Language"
@@ -211,35 +221,78 @@ $Text = @{
     }
 }
 
+function Ensure-UserConfigDir {
+    if (-not (Test-Path $UserConfigDir)) {
+        New-Item -ItemType Directory -Path $UserConfigDir -Force | Out-Null
+    }
+}
+
 function Save-ConfigObject {
     param($Cfg)
+
+    Ensure-UserConfigDir
+
     $json = $Cfg | ConvertTo-Json -Depth 10
-    [System.IO.File]::WriteAllText($ConfigPath, $json, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($UserConfigPath, $json, [System.Text.Encoding]::UTF8)
+}
+
+function Read-ConfigObjectFromPath {
+    param([string]$Path)
+
+    $raw = Get-Content -Raw -Encoding UTF8 $Path
+    $j = $raw | ConvertFrom-Json
+
+    $cfg = [ordered]@{}
+    foreach ($k in $DefaultConfig.Keys) {
+        if ($null -ne $j.$k) {
+            $cfg[$k] = $j.$k
+        } else {
+            $cfg[$k] = $DefaultConfig[$k]
+        }
+    }
+
+    return $cfg
 }
 
 function Load-Config {
-    if (-not (Test-Path $ConfigPath)) {
-        Save-ConfigObject $DefaultConfig
-    }
-
-    try {
-        $raw = Get-Content -Raw -Encoding UTF8 $ConfigPath
-        $j = $raw | ConvertFrom-Json
-
-        $cfg = [ordered]@{}
-        foreach ($k in $DefaultConfig.Keys) {
-            if ($null -ne $j.$k) {
-                $cfg[$k] = $j.$k
-            } else {
-                $cfg[$k] = $DefaultConfig[$k]
-            }
+    # 1. First try user config.
+    if (Test-Path $UserConfigPath) {
+        try {
+            return Read-ConfigObjectFromPath $UserConfigPath
         }
-        return $cfg
+        catch {
+            try {
+                Ensure-UserConfigDir
+                $backup = $UserConfigPath + ".broken-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+                Copy-Item -Path $UserConfigPath -Destination $backup -Force
+            }
+            catch {
+                # Ignore backup errors
+            }
+
+            Save-ConfigObject $DefaultConfig
+            return $DefaultConfig
+        }
     }
-    catch {
-        Save-ConfigObject $DefaultConfig
-        return $DefaultConfig
+
+    # 2. Fallback: read config next to the program.
+    if (Test-Path $PortableConfigPath) {
+        try {
+            $cfg = Read-ConfigObjectFromPath $PortableConfigPath
+
+            # Migrate fallback config to the user profile.
+            Save-ConfigObject $cfg
+            return $cfg
+        }
+        catch {
+            Save-ConfigObject $DefaultConfig
+            return $DefaultConfig
+        }
     }
+
+    # 3. No config exists: create default user config.
+    Save-ConfigObject $DefaultConfig
+    return $DefaultConfig
 }
 
 $script:Config = Load-Config
@@ -1051,6 +1104,7 @@ $LangBox.Add_SelectedIndexChanged({
 
 Apply-Language
 Log (T "Ready")
+Log ("Config: " + $ConfigPath)
 Log (T "Hint")
 Log (T "RevokeHint")
 
